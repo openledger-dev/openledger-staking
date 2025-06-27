@@ -171,10 +171,6 @@ contract Staking is EIP712 {
             _amount
         );
 
-        if (!config_.isActive) {
-            revert InactiveConfigOrInvalidSender();
-        }
-
         Stake memory stake_ = Stake({
             recipient: _onBehalfOf,
             configId: _configId,
