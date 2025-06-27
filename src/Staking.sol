@@ -191,15 +191,18 @@ contract Staking is EIP712 {
         uint256 currentStakeId_ = nextStakeId++;
 
         stakes[currentStakeId_] = stake_;
-        stakedAmounts[_configId][_onBehalfOf] += _amount;
 
-        if (stakedAmounts[_configId][_onBehalfOf] < config_.minStake) {
+        uint256 newStakedAmount_ = stakedAmounts[_configId][_onBehalfOf] + _amount;
+
+        if (newStakedAmount_ <= config_.minStake) {
             revert StakeAmountTooSmall();
         }
 
-        if (stakedAmounts[_configId][_onBehalfOf] > config_.maxStake) {
+        if (newStakedAmount_ >= config_.maxStake) {
             revert StakeAmountExceeded();
         }
+
+        stakedAmounts[_configId][_onBehalfOf] = newStakedAmount_;
 
         emit Staked(currentStakeId_, _onBehalfOf, _amount);
     }
@@ -224,13 +227,10 @@ contract Staking is EIP712 {
     ) external nonZeroAmount(_amount) {
         Stake memory stake_ = stakes[_stakingId];
         StakeConfig memory config_ = configs[stake_.configId];
-
-        if (!config_.isTopupEnabled || stake_.recipient != msg.sender) {
+        
+        // Stake exists otherwise will revert
+        if (stake_.amount == 0 || stake_.recipient != msg.sender || !config_.isTopupEnabled) {
             revert InactiveConfigOrInvalidSender();
-        }
-
-        if (stake_.amount == 0) {
-            revert StakeNotFound();
         }
 
         IERC20(config_.token).safeTransferFrom(
@@ -248,7 +248,7 @@ contract Staking is EIP712 {
 
         stakedAmounts[stake_.configId][stake_.recipient] += _amount + interest;
 
-        if (stakedAmounts[stake_.configId][stake_.recipient] > config_.maxStake) {
+        if (stakedAmounts[stake_.configId][stake_.recipient] >= config_.maxStake) {
             revert StakeAmountExceeded();
         }
 
