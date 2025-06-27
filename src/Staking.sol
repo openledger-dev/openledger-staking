@@ -123,7 +123,6 @@ contract Staking is EIP712, OwnableRoles {
 
         // Create config
         if (config_.bank == address(0)) {
-            config_.bank = msg.sender;
             StakeConfig memory newConfig_ = StakeConfig({
                 bank: msg.sender,
                 manager: _config.manager,
