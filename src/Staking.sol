@@ -38,7 +38,6 @@ struct StakeConfig {
     uint256 minStake; // Minimum amount of tokens that can be staked
     bool isActive; // Whether the stake is active
     bool isTopupEnabled; // Whether the stake is topped up
-    bool enbaleCommit; // Whether the stake supports commitment
 }
 
 /// @notice Represents an unstake request with timing information
@@ -232,6 +231,7 @@ contract Staking is EIP712 {
         uint256 _stakingId,
         uint256 _configId,
         uint256 _startTime,
+        uint256 _nonce,
         uint256 _amount
     ) external {
         StakeCommitment memory commitment_ = stakeCommitments[_stakingId];
@@ -240,10 +240,11 @@ contract Staking is EIP712 {
         }
 
         bytes32 digest = _hashTypedData(keccak256(abi.encode(
-            keccak256("Stake(uint256 configId,uint256 amount,uint256 startTime)"),
+            keccak256("Stake(uint256 configId,uint256 amount,uint256 startTime,uint256 nonce)"),
             _configId,
             _startTime,
-            _amount
+            _amount,
+            _nonce
         )));
 
         StakeConfig memory config_ = configs[_configId];

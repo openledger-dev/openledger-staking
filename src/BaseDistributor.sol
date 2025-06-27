@@ -22,19 +22,15 @@ contract BaseDistributor is OwnableRoles {
     address public token;
 
     mapping(bytes32 => mapping(address => uint256)) public claimed;
-    mapping(bytes32 => bytes32) public merkleConfiguration;
 
     // errors
     error AlreadyClaimed();
     error InvalidSignature();
     error NotActive();
     error ZeroAddress();
-    error InvalidMerkleProof(bytes32 root);
     error WithdrawFailed();
-    error IncorrectFee();
 
     event AirdropClaimed(address indexed account, bytes32 indexed root, uint256 amount);
-    event MerkleConfigurationUpdate(bytes32 indexed root, bytes32 indexed configurator);
     event Withdraw(address indexed to, uint256 amount);
     event FeeSet(uint256 fee);
     event VaultSet(address indexed vault);
@@ -68,13 +64,6 @@ contract BaseDistributor is OwnableRoles {
         signer = _signer;
     }
 
-    /// @notice Set the claim root
-    /// @param _claimRoot root of the merkle tree
-    function setClaimRoot(bytes32 _claimRoot, bytes32 _configurator) external onlyRoles(PROJECT_ADMIN) {
-        merkleConfiguration[_claimRoot] = _configurator;
-        emit MerkleConfigurationUpdate(_claimRoot, _configurator);
-    }
-
     /// @notice Set the vault
     /// @param _vault address of the vault
     function setVault(address _vault) external onlyRoles(PROJECT_ADMIN) {
@@ -95,20 +84,6 @@ contract BaseDistributor is OwnableRoles {
     }
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
-    /*                      FEE FUNCTIONS                         */
-    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
-    /// @notice Withdraw the fee
-    /// @dev Only callable by the owner
-    function withdrawFee(address _recipient) external onlyOwner {
-        uint256 _balance = address(this).balance;
-        if (_balance > 0) {
-            (bool _success,) = payable(_recipient).call{value: _balance}("");
-            if (!_success) revert WithdrawFailed();
-            emit Withdraw(_recipient, _balance);
-        }
-    }
-
-    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                   EXTERNAL FUNCTIONS                       */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
@@ -126,7 +101,7 @@ contract BaseDistributor is OwnableRoles {
 
         // if the signer is not set, skip signature check
         if (_signer != address(0)) {
-            _signatureCheck(_amount, _onBehalfOf, _signature, bytes32(0), _signer);
+            _signatureCheck(_amount, _onBehalfOf, _signature, _signer);
         }
 
         IERC20(token).safeTransferFrom(vault, _onBehalfOf, _amount);
@@ -143,18 +118,16 @@ contract BaseDistributor is OwnableRoles {
     /// @param _amount amount of tokens to claim
     /// @param _onBehalfOf address to claim on behalf of
     /// @param _signature signature of the claim
-    /// @param _root root of the merkle tree
     /// @param _signer signer to check
     function _signatureCheck(
         uint256 _amount,
         address _onBehalfOf,
         bytes calldata _signature,
-        bytes32 _root,
         address _signer
     ) internal view {
         if (_signature.length == 0) revert InvalidSignature();
 
-        bytes32 messageHash = keccak256(abi.encodePacked(_onBehalfOf, _amount, _root, address(this), block.chainid));
+        bytes32 messageHash = keccak256(abi.encodePacked(_onBehalfOf, _amount, bytes32(0), address(this), block.chainid));
         bytes32 prefixedHash = ECDSA.toEthSignedMessageHash(messageHash);
         address recoveredSigner = ECDSA.recoverCalldata(prefixedHash, _signature);
 
