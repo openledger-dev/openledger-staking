@@ -104,6 +104,11 @@ contract BaseDistributor is OwnableRoles {
             _signatureCheck(_amount, _onBehalfOf, _signature, _signer);
         }
 
+        if (claimed[bytes32(0)][_onBehalfOf] > 0) {
+            revert AlreadyClaimed();
+        }
+        claimed[bytes32(0)][_onBehalfOf] = block.number;
+        
         IERC20(token).safeTransferFrom(vault, _onBehalfOf, _amount);
 
         emit AirdropClaimed(_onBehalfOf, bytes32(0), _amount);
