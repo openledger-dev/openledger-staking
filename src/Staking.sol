@@ -384,10 +384,10 @@ contract Staking is EIP712 {
 
         IERC20(config_.token).safeTransferFrom(
             config_.bank,
-            msg.sender,
+            _stake.recipient,
             _stake.amount + _stake.accruedInterest
         );
-        emit Unstaked(_stakeId, msg.sender);
+        emit Unstaked(_stakeId, _stake.recipient);
     }
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
