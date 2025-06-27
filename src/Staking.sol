@@ -93,6 +93,7 @@ contract Staking is EIP712 {
     error StakeAmountTooSmall();
     error MismatchedRecipient();
     error Unauthorized();
+    error InvalidCommitment();
 
     /// @notice Creates a new staking contract
     /// @dev Initializes the contract with the deployer as the owner
@@ -164,7 +165,9 @@ contract Staking is EIP712 {
             startTime: block.timestamp
         });
 
-        stakes[nextStakeId++] = stake_;
+        uint256 currentStakeId_ = nextStakeId++;
+
+        stakes[currentStakeId_] = stake_;
         stakedAmounts[_configId][_onBehalfOf] += _amount;
 
         if (stakedAmounts[_configId][_onBehalfOf] < config_.minStake) {
@@ -175,7 +178,7 @@ contract Staking is EIP712 {
             revert StakeAmountExceeded();
         }
 
-        emit Staked(nextStakeId, _onBehalfOf, _amount);
+        emit Staked(currentStakeId_, _onBehalfOf, _amount);
     }
 
     function commitStake(bytes32 _commitment, bytes calldata _permit) external {
@@ -184,8 +187,10 @@ contract Staking is EIP712 {
             signature: _permit
         });
 
-        stakeCommitments[nextStakeId++] = commitment_;
-        emit CommitStake(nextStakeId, _commitment);
+        uint256 currentStakeId_ = nextStakeId++;
+        stakeCommitments[currentStakeId_] = commitment_;
+        
+        emit CommitStake(currentStakeId_, _commitment);
     }
 
     /// @notice Allows topping up an existing stake
@@ -246,6 +251,10 @@ contract Staking is EIP712 {
             _amount,
             _nonce
         )));
+
+        if (digest != commitment_.commitment) {
+            revert InvalidCommitment();
+        }
 
         StakeConfig memory config_ = configs[_configId];
 
