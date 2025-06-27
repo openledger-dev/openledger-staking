@@ -241,6 +241,11 @@ contract Staking is EIP712, OwnableRoles {
             revert InactiveConfigOrInvalidSender();
         }
 
+        bool isEnded_ = stake_.startTime + config_.stakeDuration <= block.timestamp;
+        if (isEnded_) {
+            revert StakeEnded();
+        }
+
         IERC20(config_.token).safeTransferFrom(
             msg.sender,
             config_.bank,
