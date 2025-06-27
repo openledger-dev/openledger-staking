@@ -60,6 +60,8 @@ contract Staking is EIP712 {
     /// @notice Mapping of configuration hash to enabled features
     mapping(uint256 => StakeConfig) public configs;
     mapping(uint256 => mapping(address => uint256)) public stakedAmounts;
+    
+    mapping(bytes32 => bool) public replayGuard;
 
     event Staked(
         uint256 indexed stakingId,
@@ -91,6 +93,7 @@ contract Staking is EIP712 {
     error MismatchedRecipient();
     error Unauthorized();
     error InvalidCommitment();
+    error SignatureReplayed();
 
     /// @notice Creates a new staking contract
     /// @dev Initializes the contract with the deployer as the owner
@@ -208,6 +211,11 @@ contract Staking is EIP712 {
     }
 
     function commitStake(bytes calldata _permit) external {
+        bytes32 digest = keccak256(_permit);
+        if (replayGuard[digest]) {
+            revert SignatureReplayed();
+        }
+        replayGuard[digest] = true;
 
         uint256 currentStakeId_ = nextStakeId++;
         stakeCommitments[currentStakeId_] = _permit;
