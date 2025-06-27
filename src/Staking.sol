@@ -44,7 +44,7 @@ struct UnstakeRequest {
 
 /// @title Staking
 /// @notice A flexible staking system that allows users to stake tokens and earn interest
-contract Staking is EIP712 {
+contract Staking is EIP712, OwnableRoles {
     using SafeERC20 for IERC20;
     using FixedPointMathLib for uint256;
 
@@ -91,13 +91,16 @@ contract Staking is EIP712 {
     error StakeAmountExceeded();
     error StakeAmountTooSmall();
     error MismatchedRecipient();
-    error Unauthorized();
     error InvalidCommitment();
     error SignatureReplayed();
 
+    uint256 public constant TRUSTED_BANK = _ROLE_0;
+
     /// @notice Creates a new staking contract
     /// @dev Initializes the contract with the deployer as the owner
-    constructor() {}
+    constructor() {
+        _initializeOwner(msg.sender);
+    }
 
     /// @notice Ensures the amount is greater than zero
     /// @param _amount The amount to check
@@ -115,7 +118,7 @@ contract Staking is EIP712 {
     function setConfig(
         uint256 _configId,
         StakeConfig calldata _config
-    ) external {
+    ) external onlyRoles(TRUSTED_BANK) {
         StakeConfig memory config_ = configs[_configId];
 
         // Create config
