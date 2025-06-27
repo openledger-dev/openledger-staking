@@ -21,7 +21,7 @@ contract BaseDistributor is OwnableRoles {
 
     address public token;
 
-    mapping(bytes32 => mapping(address => uint256)) public claimed;
+    mapping(address => uint256) public claimed;
 
     // errors
     error AlreadyClaimed();
@@ -29,7 +29,7 @@ contract BaseDistributor is OwnableRoles {
     error NotActive();
     error ZeroAddress();
 
-    event AirdropClaimed(address indexed account, bytes32 indexed root, uint256 amount);
+    event AirdropClaimed(address indexed account, uint256 amount);
     event VaultSet(address indexed vault);
     event TokenSet(address indexed token);
 
@@ -99,14 +99,14 @@ contract BaseDistributor is OwnableRoles {
         // if the signer is not set, skip signature check
         _signatureCheck(_amount, _onBehalfOf, _signature, _signer);
 
-        if (claimed[bytes32(0)][_onBehalfOf] > 0) {
+        if (claimed[_onBehalfOf] > 0) {
             revert AlreadyClaimed();
         }
-        claimed[bytes32(0)][_onBehalfOf] = block.number;
+        claimed[_onBehalfOf] = block.number;
         
         IERC20(token).safeTransferFrom(vault, _onBehalfOf, _amount);
 
-        emit AirdropClaimed(_onBehalfOf, bytes32(0), _amount);
+        emit AirdropClaimed(_onBehalfOf, _amount);
     }
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
