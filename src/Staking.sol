@@ -246,6 +246,12 @@ contract Staking is EIP712 {
         stake_.claimAt = block.timestamp;
         stake_.accruedInterest = 0;
 
+        stakedAmounts[stake_.configId][stake_.recipient] += _amount + interest;
+
+        if (stakedAmounts[stake_.configId][stake_.recipient] > config_.maxStake) {
+            revert StakeAmountExceeded();
+        }
+
         stakes[_stakingId] = stake_;
 
         emit ToppedUp(_stakingId, stake_.recipient, _amount);
