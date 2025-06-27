@@ -33,6 +33,7 @@ struct StakeConfig {
     uint256 minStake; // Minimum amount of tokens that can be staked
     bool isActive; // Whether the stake is active
     bool isTopupEnabled; // Whether the stake is topped up
+    address whitelist; // Whitelist of addresses that can stake
 }
 
 /// @notice Represents an unstake request with timing information
@@ -127,7 +128,8 @@ contract Staking is EIP712 {
                 maxStake: _config.maxStake,
                 minStake: _config.minStake,
                 isActive: _config.isActive,
-                isTopupEnabled: _config.isTopupEnabled
+                isTopupEnabled: _config.isTopupEnabled,
+                whitelist: _config.whitelist
             });
             configs[_configId] = newConfig_;
             emit ConfigCreated(_configId);
@@ -163,6 +165,12 @@ contract Staking is EIP712 {
 
         if (!config_.isActive) {
             revert InactiveConfigOrInvalidSender();
+        }
+
+        if (config_.whitelist != address(0)) {
+            if (config_.whitelist != msg.sender) {
+                revert InactiveConfigOrInvalidSender();
+            }
         }
 
         IERC20(config_.token).safeTransferFrom(
