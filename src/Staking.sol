@@ -73,6 +73,7 @@ contract Staking is EIP712 {
     event Unstaked(uint256 indexed stakingId, address indexed recipient);
     event RequestUnstake(uint256 indexed stakingId, address indexed recipient);
     event ConfigSet(uint256 indexed configId);
+    event ConfigCreated(uint256 indexed configId);
     event CooldownDurationSet(uint256 cooldownDuration);
     event TokenAddressesSet(address token);
     event CommitStake(uint256 indexed stakingId, bytes commitment);
@@ -112,6 +113,28 @@ contract Staking is EIP712 {
         StakeConfig calldata _config
     ) external {
         StakeConfig memory config_ = configs[_configId];
+
+        // Create config
+        if (config_.bank == address(0)) {
+            config_.bank = msg.sender;
+            StakeConfig memory newConfig_ = StakeConfig({
+                bank: msg.sender,
+                manager: _config.manager,
+                token: _config.token,
+                interestRate: _config.interestRate,
+                stakeDuration: _config.stakeDuration,
+                cooldownDuration: _config.cooldownDuration,
+                maxStake: _config.maxStake,
+                minStake: _config.minStake,
+                isActive: _config.isActive,
+                isTopupEnabled: _config.isTopupEnabled
+            });
+            configs[_configId] = newConfig_;
+            emit ConfigCreated(_configId);
+            return;
+        }
+
+        // Update config
         if (config_.bank != msg.sender) {
             revert Unauthorized();
         }
