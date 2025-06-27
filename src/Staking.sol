@@ -77,8 +77,6 @@ contract Staking is EIP712, OwnableRoles {
     event RequestUnstake(uint256 indexed stakingId, address indexed recipient);
     event ConfigSet(uint256 indexed configId);
     event ConfigCreated(uint256 indexed configId);
-    event CooldownDurationSet(uint256 cooldownDuration);
-    event TokenAddressesSet(address token);
     event CommitStake(uint256 indexed stakingId, bytes commitment);
 
     error InactiveConfigOrInvalidSender();
