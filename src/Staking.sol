@@ -20,11 +20,6 @@ struct Stake {
     uint256 startTime; // Timestamp when the stake was created
 }
 
-struct StakeCommitment {
-    bytes32 commitment;
-    bytes signature;
-}
-
 /// @notice Configuration for a stake type
 struct StakeConfig {
     address manager; // Address that can manage the stake
@@ -54,7 +49,7 @@ contract Staking is EIP712 {
 
     /// @notice Mapping of stake ID to stake information
     mapping(uint256 => Stake) public stakes;
-    mapping(uint256 => StakeCommitment) public stakeCommitments;
+    mapping(uint256 => bytes) public stakeCommitments;
     /// @notice Counter for generating unique stake IDs
     uint256 public nextStakeId;
 
@@ -80,7 +75,7 @@ contract Staking is EIP712 {
     event ConfigSet(uint256 indexed configId);
     event CooldownDurationSet(uint256 cooldownDuration);
     event TokenAddressesSet(address token);
-    event CommitStake(uint256 indexed stakingId, bytes32 indexed commitment);
+    event CommitStake(uint256 indexed stakingId, bytes commitment);
 
     error InactiveConfigOrInvalidSender();
     error StakeNotFound();
@@ -181,16 +176,12 @@ contract Staking is EIP712 {
         emit Staked(currentStakeId_, _onBehalfOf, _amount);
     }
 
-    function commitStake(bytes32 _commitment, bytes calldata _permit) external {
-        StakeCommitment memory commitment_ = StakeCommitment({
-            commitment: _commitment,
-            signature: _permit
-        });
+    function commitStake(bytes calldata _permit) external {
 
         uint256 currentStakeId_ = nextStakeId++;
-        stakeCommitments[currentStakeId_] = commitment_;
-        
-        emit CommitStake(currentStakeId_, _commitment);
+        stakeCommitments[currentStakeId_] = _permit;
+
+        emit CommitStake(currentStakeId_, _permit);
     }
 
     /// @notice Allows topping up an existing stake
@@ -239,26 +230,24 @@ contract Staking is EIP712 {
         uint256 _nonce,
         uint256 _amount
     ) external {
-        StakeCommitment memory commitment_ = stakeCommitments[_stakingId];
-        if (commitment_.commitment == 0) {
+        bytes memory commitment_ = stakeCommitments[_stakingId];
+        if (commitment_.length == 0) {
             revert StakeNotFound();
         }
 
         bytes32 digest = _hashTypedData(keccak256(abi.encode(
-            keccak256("Stake(uint256 configId,uint256 amount,uint256 startTime,uint256 nonce)"),
+            keccak256("Stake(address recipient,uint256 configId,uint256 amount,uint256 startTime,uint256 nonce)"),
+            msg.sender,
             _configId,
             _startTime,
             _amount,
             _nonce
         )));
 
-        if (digest != commitment_.commitment) {
-            revert InvalidCommitment();
-        }
 
         StakeConfig memory config_ = configs[_configId];
 
-        address signer = ECDSA.recover(digest, commitment_.signature);
+        address signer = ECDSA.recover(digest, commitment_);
 
         if (signer != config_.manager) {
             revert Unauthorized();
