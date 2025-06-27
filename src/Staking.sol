@@ -308,14 +308,14 @@ contract Staking is EIP712 {
         stakes[_stakingId] = stake_;
         stakedAmounts[_configId][msg.sender] += _amount;
 
-        this.requestUnstake(_stakingId);
+        requestUnstake(_stakingId);
     }
 
     /// @notice Initiates the unstaking process for a stake
     /// @param _stakingId The ID of the stake to unstake
     /// @dev If cooldown is not required, unstakes immediately
     /// @dev If cooldown is required, creates an unstake request
-    function requestUnstake(uint256 _stakingId) external {
+    function requestUnstake(uint256 _stakingId) public {
         Stake memory stake_ = stakes[_stakingId];
         if (stake_.amount == 0) {
             revert StakeNotFound();
