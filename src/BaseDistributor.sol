@@ -28,11 +28,8 @@ contract BaseDistributor is OwnableRoles {
     error InvalidSignature();
     error NotActive();
     error ZeroAddress();
-    error WithdrawFailed();
 
     event AirdropClaimed(address indexed account, bytes32 indexed root, uint256 amount);
-    event Withdraw(address indexed to, uint256 amount);
-    event FeeSet(uint256 fee);
     event VaultSet(address indexed vault);
     event TokenSet(address indexed token);
 
