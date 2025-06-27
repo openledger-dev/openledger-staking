@@ -100,9 +100,7 @@ contract BaseDistributor is OwnableRoles {
         address _signer = signer;
 
         // if the signer is not set, skip signature check
-        if (_signer != address(0)) {
-            _signatureCheck(_amount, _onBehalfOf, _signature, _signer);
-        }
+        _signatureCheck(_amount, _onBehalfOf, _signature, _signer);
 
         if (claimed[bytes32(0)][_onBehalfOf] > 0) {
             revert AlreadyClaimed();
