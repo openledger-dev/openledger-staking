@@ -22,8 +22,8 @@ struct Stake {
 
 /// @notice Configuration for a stake type
 struct StakeConfig {
-    address manager; // Address that can manage the stake
     address bank; // Address that holds the staked tokens
+    address manager; // Address that can manage the stake
     address token; // The token that users can stake
     uint256 interestRate; // Interest rate per second (in wei)
     uint256 stakeDuration; // Duration of the stake in seconds
@@ -111,7 +111,8 @@ contract Staking is EIP712 {
         uint256 _configId,
         StakeConfig calldata _config
     ) external {
-        if (_config.manager != msg.sender) {
+        StakeConfig memory config_ = configs[_configId];
+        if (config_.bank != msg.sender) {
             revert Unauthorized();
         }
         configs[_configId] = _config;
