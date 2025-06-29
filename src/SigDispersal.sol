@@ -6,10 +6,10 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {OwnableRoles} from "solady/auth/OwnableRoles.sol";
 
-/// @title  Base Distributor
+/// @title  SigDispersal
 /// @author Clique (@Clique2046)
 /// @author Alan (@alannotnerd)
-contract BaseDistributor is OwnableRoles {
+contract SigDispersal is OwnableRoles {
     using SafeERC20 for IERC20;
 
     // address signing the claims
