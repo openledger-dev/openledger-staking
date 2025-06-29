@@ -28,7 +28,6 @@ struct StakeConfig {
     uint256 interestRate; // Interest rate per second (in wei)
     uint256 stakeDuration; // Duration of the stake in seconds
     uint256 cooldownDuration; // Duration of the cooldown period in seconds
-
     uint256 maxStake; // Maximum amount of tokens that can be staked
     uint256 minStake; // Minimum amount of tokens that can be staked
     bool isActive; // Whether the stake is active
@@ -60,19 +59,11 @@ contract Staking is EIP712, OwnableRoles {
     /// @notice Mapping of configuration hash to enabled features
     mapping(uint256 => StakeConfig) public configs;
     mapping(uint256 => mapping(address => uint256)) public stakedAmounts;
-    
+
     mapping(bytes32 => bool) public replayGuard;
 
-    event Staked(
-        uint256 indexed stakingId,
-        address indexed recipient,
-        uint256 indexed amount
-    );
-    event ToppedUp(
-        uint256 indexed stakingId,
-        address indexed recipient,
-        uint256 amount
-    );
+    event Staked(uint256 indexed stakingId, address indexed recipient, uint256 indexed amount);
+    event ToppedUp(uint256 indexed stakingId, address indexed recipient, uint256 amount);
     event Unstaked(uint256 indexed stakingId, address indexed recipient);
     event RequestUnstake(uint256 indexed stakingId, address indexed recipient);
     event ConfigSet(uint256 indexed configId);
@@ -113,10 +104,7 @@ contract Staking is EIP712, OwnableRoles {
     /*                     Admin Functions                        */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-    function setConfig(
-        uint256 _configId,
-        StakeConfig calldata _config
-    ) external onlyRoles(TRUSTED_BANK) {
+    function setConfig(uint256 _configId, StakeConfig calldata _config) external onlyRoles(TRUSTED_BANK) {
         StakeConfig memory config_ = configs[_configId];
 
         // Create config
@@ -159,11 +147,7 @@ contract Staking is EIP712, OwnableRoles {
     /// @dev - Front-running: Safe because token transfer is from msg.sender
     /// @dev - Reentrancy: Safe because transfer is done after state mutation
     /// @dev - Access control: Checks whitelist if configured
-    function stake(
-        uint256 _configId,
-        address _onBehalfOf,
-        uint256 _amount
-    ) external nonZeroAmount(_amount) {
+    function stake(uint256 _configId, address _onBehalfOf, uint256 _amount) external nonZeroAmount(_amount) {
         StakeConfig memory config_ = configs[_configId];
 
         if (!config_.isActive) {
@@ -174,11 +158,7 @@ contract Staking is EIP712, OwnableRoles {
             revert InactiveConfigOrInvalidSender();
         }
 
-        IERC20(config_.token).safeTransferFrom(
-            msg.sender,
-            config_.bank,
-            _amount
-        );
+        IERC20(config_.token).safeTransferFrom(msg.sender, config_.bank, _amount);
 
         Stake memory stake_ = Stake({
             recipient: _onBehalfOf,
@@ -227,13 +207,10 @@ contract Staking is EIP712, OwnableRoles {
     /// @dev SECURITY:
     /// @dev - Reentrancy: Safe because transfer is done after state mutation
     /// @dev - Access control: Only allowed if TOPUP_ENABLED is set for the stake config
-    function topUpStake(
-        uint256 _stakingId,
-        uint256 _amount
-    ) external nonZeroAmount(_amount) {
+    function topUpStake(uint256 _stakingId, uint256 _amount) external nonZeroAmount(_amount) {
         Stake memory stake_ = stakes[_stakingId];
         StakeConfig memory config_ = configs[stake_.configId];
-        
+
         // Stake exists otherwise will revert
         if (stake_.amount == 0 || stake_.recipient != msg.sender || !config_.isTopupEnabled) {
             revert InactiveConfigOrInvalidSender();
@@ -244,11 +221,7 @@ contract Staking is EIP712, OwnableRoles {
             revert StakeEnded();
         }
 
-        IERC20(config_.token).safeTransferFrom(
-            msg.sender,
-            config_.bank,
-            _amount
-        );
+        IERC20(config_.token).safeTransferFrom(msg.sender, config_.bank, _amount);
 
         uint256 interest = calculateInterest(stake_);
 
@@ -280,15 +253,20 @@ contract Staking is EIP712, OwnableRoles {
             revert StakeNotFound();
         }
 
-        bytes32 digest = _hashTypedData(keccak256(abi.encode(
-            keccak256("Stake(address recipient,uint256 configId,uint256 amount,uint256 startTime,uint256 nonce)"),
-            msg.sender,
-            _configId,
-            _startTime,
-            _amount,
-            _nonce
-        )));
-
+        bytes32 digest = _hashTypedData(
+            keccak256(
+                abi.encode(
+                    keccak256(
+                        "Stake(address recipient,uint256 configId,uint256 amount,uint256 startTime,uint256 nonce)"
+                    ),
+                    msg.sender,
+                    _configId,
+                    _startTime,
+                    _amount,
+                    _nonce
+                )
+            )
+        );
 
         StakeConfig memory config_ = configs[_configId];
 
@@ -336,10 +314,7 @@ contract Staking is EIP712, OwnableRoles {
         if (config_.cooldownDuration == 0) {
             inner_unstake(_stakingId, stake_);
         } else {
-            unstakeRequests[_stakingId] = UnstakeRequest({
-                requestAt: block.timestamp,
-                stake: stake_
-            });
+            unstakeRequests[_stakingId] = UnstakeRequest({requestAt: block.timestamp, stake: stake_});
             emit RequestUnstake(_stakingId, stake_.recipient);
         }
     }
@@ -358,10 +333,7 @@ contract Staking is EIP712, OwnableRoles {
             revert MismatchedRecipient();
         }
 
-        if (
-            block.timestamp <
-            unstakeRequest_.requestAt + config_.cooldownDuration
-        ) {
+        if (block.timestamp < unstakeRequest_.requestAt + config_.cooldownDuration) {
             revert CooldownNotPassed();
         }
         delete unstakeRequests[_stakingId];
@@ -377,19 +349,14 @@ contract Staking is EIP712, OwnableRoles {
     /// @param _stake The stake information
     function inner_unstake(uint256 _stakeId, Stake memory _stake) internal {
         StakeConfig memory config_ = configs[_stake.configId];
-        bool isEnded_ = _stake.startTime + config_.stakeDuration <=
-            block.timestamp;
+        bool isEnded_ = _stake.startTime + config_.stakeDuration <= block.timestamp;
         if (!isEnded_) {
             revert StakeNotEnded();
         }
 
         stakedAmounts[_stake.configId][_stake.recipient] -= _stake.amount;
 
-        IERC20(config_.token).safeTransferFrom(
-            config_.bank,
-            _stake.recipient,
-            _stake.amount + _stake.accruedInterest
-        );
+        IERC20(config_.token).safeTransferFrom(config_.bank, _stake.recipient, _stake.amount + _stake.accruedInterest);
         emit Unstaked(_stakeId, _stake.recipient);
     }
 
@@ -400,9 +367,7 @@ contract Staking is EIP712, OwnableRoles {
     /// @notice Calculates and accrues interest for a stake
     /// @param _stake The stake to accrue interest for
     /// @return _stake The stake with accrued interest
-    function accureInterest(
-        Stake memory _stake
-    ) public view returns (Stake memory) {
+    function accureInterest(Stake memory _stake) public view returns (Stake memory) {
         uint256 interest = calculateInterest(_stake);
         _stake.accruedInterest = interest;
         _stake.claimAt = block.timestamp;
@@ -412,9 +377,7 @@ contract Staking is EIP712, OwnableRoles {
     /// @notice Calculates the interest earned for a stake
     /// @param _stakeInfo The stake information
     /// @return uint256 The amount of interest earned
-    function calculateInterest(
-        Stake memory _stakeInfo
-    ) public view returns (uint256) {
+    function calculateInterest(Stake memory _stakeInfo) public view returns (uint256) {
         uint256 claimAt_ = _stakeInfo.claimAt;
         StakeConfig memory config_ = configs[_stakeInfo.configId];
         uint256 stakeDuration_ = config_.stakeDuration;
@@ -422,9 +385,7 @@ contract Staking is EIP712, OwnableRoles {
         uint256 amount_ = _stakeInfo.amount;
 
         uint256 elapsedTime_ = block.timestamp - claimAt_;
-        uint256 upperBound_ = (stakeDuration_ == 0)
-            ? type(uint256).max
-            : stakeDuration_;
+        uint256 upperBound_ = (stakeDuration_ == 0) ? type(uint256).max : stakeDuration_;
         elapsedTime_ = elapsedTime_ > upperBound_ ? upperBound_ : elapsedTime_;
 
         uint256 interest_ = amount_.mulWad(interestRate_ * elapsedTime_);

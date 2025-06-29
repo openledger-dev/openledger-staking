@@ -21,7 +21,8 @@ contract SigDispersal is OwnableRoles {
 
     address public token;
 
-    mapping(address => uint256) public claimed;
+    mapping(bytes32 => mapping(address => uint256)) public claimed;
+    mapping(bytes32 => bool) public batchEnabled;
 
     // errors
     error AlreadyClaimed();
@@ -29,9 +30,10 @@ contract SigDispersal is OwnableRoles {
     error NotActive();
     error ZeroAddress();
 
-    event AirdropClaimed(address indexed account, uint256 amount);
+    event AirdropClaimed(bytes32 indexed batch, address indexed account, uint256 amount);
     event VaultSet(address indexed vault);
     event TokenSet(address indexed token);
+    event BatchEnabled(bytes32 indexed root, bool enabled);
 
     uint256 public constant PROJECT_ADMIN = _ROLE_0;
 
@@ -80,6 +82,14 @@ contract SigDispersal is OwnableRoles {
         emit TokenSet(_token);
     }
 
+    /// @notice Set the batch enabled state
+    /// @param _root root of the batch
+    /// @param _enabled whether the batch is enabled
+    function setBatchEnabled(bytes32 _root, bool _enabled) external onlyRoles(PROJECT_ADMIN) {
+        batchEnabled[_root] = _enabled;
+        emit BatchEnabled(_root, _enabled);
+    }
+
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                   EXTERNAL FUNCTIONS                       */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
@@ -87,47 +97,50 @@ contract SigDispersal is OwnableRoles {
     /// @notice Claim airdrop tokens. Checks for both merkle proof
     //          and signature validation
     /// @param _signature signature of the claim
+    /// @param _batch batch to check
     /// @param _amount amount of tokens to claim
     /// @param _onBehalfOf address to claim on behalf of
-    function claim(
-        bytes calldata _signature,
-        uint256 _amount,
-        address _onBehalfOf
-    ) external payable whenActive {
+    function claim(bytes calldata _signature, bytes32 _batch, uint256 _amount, address _onBehalfOf)
+        external
+        payable
+        whenActive
+    {
         address _signer = signer;
 
         // if the signer is not set, skip signature check
-        _signatureCheck(_amount, _onBehalfOf, _signature, _signer);
+        _signatureCheck(_amount, _onBehalfOf, _signature, _signer, _batch);
 
-        if (claimed[_onBehalfOf] > 0) {
+        uint256 _claimHeight = claimed[_batch][_onBehalfOf];
+        if (_claimHeight > 0) {
             revert AlreadyClaimed();
         }
-        claimed[_onBehalfOf] = block.number;
-        
+        claimed[_batch][_onBehalfOf] = block.number;
+
         IERC20(token).safeTransferFrom(vault, _onBehalfOf, _amount);
 
-        emit AirdropClaimed(_onBehalfOf, _amount);
+        emit AirdropClaimed(_batch, _onBehalfOf, _amount);
     }
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                       PRIVATE FUNCTIONS                    */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-
     /// @notice Internal function to check the signature
     /// @param _amount amount of tokens to claim
     /// @param _onBehalfOf address to claim on behalf of
     /// @param _signature signature of the claim
     /// @param _signer signer to check
+    /// @param _batch batch to check
     function _signatureCheck(
         uint256 _amount,
         address _onBehalfOf,
         bytes calldata _signature,
-        address _signer
+        address _signer,
+        bytes32 _batch
     ) internal view {
         if (_signature.length == 0) revert InvalidSignature();
 
-        bytes32 messageHash = keccak256(abi.encodePacked(_onBehalfOf, _amount, bytes32(0), address(this), block.chainid));
+        bytes32 messageHash = keccak256(abi.encodePacked(_onBehalfOf, _amount, _batch, address(this), block.chainid));
         bytes32 prefixedHash = ECDSA.toEthSignedMessageHash(messageHash);
         address recoveredSigner = ECDSA.recoverCalldata(prefixedHash, _signature);
 
