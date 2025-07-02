@@ -14,8 +14,7 @@ import {ECDSA} from "solady/utils/ECDSA.sol";
 struct Stake {
     address recipient; // Commitment to the stake
     uint256 configId; // Configuration ID
-    uint256 claimAt; // Timestamp of the last interest claim
-    uint256 accruedInterest; // Accumulated interest that hasn't been claimed
+    uint256 updatedAt; // Timestamp of the last interest claim
     uint256 amount; // Amount of tokens staked
     uint256 startTime; // Timestamp when the stake was created
 }
@@ -46,6 +45,7 @@ struct UnstakeRequest {
 contract Staking is EIP712, OwnableRoles {
     using SafeERC20 for IERC20;
     using FixedPointMathLib for uint256;
+    using FixedPointMathLib for int256;
 
     /// @notice Mapping of stake ID to stake information
     mapping(uint256 => Stake) public stakes;
@@ -82,6 +82,7 @@ contract Staking is EIP712, OwnableRoles {
     error MismatchedRecipient();
     error InvalidCommitment();
     error SignatureReplayed();
+    error ArithmeticOverflow();
 
     uint256 public constant TRUSTED_BANK = _ROLE_0;
 
@@ -163,8 +164,7 @@ contract Staking is EIP712, OwnableRoles {
         Stake memory stake_ = Stake({
             recipient: _onBehalfOf,
             configId: _configId,
-            claimAt: block.timestamp,
-            accruedInterest: 0,
+            updatedAt: block.timestamp,
             amount: _amount,
             startTime: block.timestamp
         });
@@ -223,14 +223,13 @@ contract Staking is EIP712, OwnableRoles {
 
         IERC20(config_.token).safeTransferFrom(msg.sender, config_.bank, _amount);
 
-        uint256 interest = calculateInterest(stake_);
+        uint256 amount_ = calculateAmount(stake_);
 
-        stake_.amount += interest + _amount;
+        stake_.amount = _amount + amount_;
         stake_.startTime = block.timestamp;
-        stake_.claimAt = block.timestamp;
-        stake_.accruedInterest = 0;
+        stake_.updatedAt = block.timestamp;
 
-        stakedAmounts[stake_.configId][stake_.recipient] += _amount + interest;
+        stakedAmounts[stake_.configId][stake_.recipient] = _amount + amount_;
 
         if (stakedAmounts[stake_.configId][stake_.recipient] >= config_.maxStake) {
             revert StakeAmountExceeded();
@@ -281,8 +280,7 @@ contract Staking is EIP712, OwnableRoles {
         Stake memory stake_ = Stake({
             recipient: msg.sender,
             configId: _configId,
-            claimAt: _startTime,
-            accruedInterest: 0,
+            updatedAt: _startTime,
             amount: _amount,
             startTime: _startTime
         });
@@ -306,13 +304,13 @@ contract Staking is EIP712, OwnableRoles {
             revert MismatchedRecipient();
         }
 
-        stake_ = accureInterest(stake_);
+        stake_ = accured(stake_);
         delete stakes[_stakingId];
 
         StakeConfig memory config_ = configs[stake_.configId];
 
         if (config_.cooldownDuration == 0) {
-            inner_unstake(_stakingId, stake_);
+            innerUnstake(_stakingId, stake_);
         } else {
             unstakeRequests[_stakingId] = UnstakeRequest({requestAt: block.timestamp, stake: stake_});
             emit RequestUnstake(_stakingId, stake_.recipient);
@@ -337,7 +335,7 @@ contract Staking is EIP712, OwnableRoles {
             revert CooldownNotPassed();
         }
         delete unstakeRequests[_stakingId];
-        inner_unstake(_stakingId, unstakeRequest_.stake);
+        innerUnstake(_stakingId, unstakeRequest_.stake);
     }
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
@@ -347,7 +345,7 @@ contract Staking is EIP712, OwnableRoles {
     /// @notice Internal function to handle unstaking logic
     /// @param _stakeId The ID of the stake to unstake
     /// @param _stake The stake information
-    function inner_unstake(uint256 _stakeId, Stake memory _stake) internal {
+    function innerUnstake(uint256 _stakeId, Stake memory _stake) internal {
         StakeConfig memory config_ = configs[_stake.configId];
         bool isEnded_ = _stake.startTime + config_.stakeDuration <= block.timestamp;
         if (!isEnded_) {
@@ -356,7 +354,7 @@ contract Staking is EIP712, OwnableRoles {
 
         stakedAmounts[_stake.configId][_stake.recipient] -= _stake.amount;
 
-        IERC20(config_.token).safeTransferFrom(config_.bank, _stake.recipient, _stake.amount + _stake.accruedInterest);
+        IERC20(config_.token).safeTransferFrom(config_.bank, _stake.recipient, _stake.amount);
         emit Unstaked(_stakeId, _stake.recipient);
     }
 
@@ -364,32 +362,35 @@ contract Staking is EIP712, OwnableRoles {
     /*                       View Functions                       */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-    /// @notice Calculates and accrues interest for a stake
-    /// @param _stake The stake to accrue interest for
-    /// @return _stake The stake with accrued interest
-    function accureInterest(Stake memory _stake) public view returns (Stake memory) {
-        uint256 interest = calculateInterest(_stake);
-        _stake.accruedInterest = interest;
-        _stake.claimAt = block.timestamp;
+    /// @notice Calculates and accrues amount for a stake
+    /// @param _stake The stake to accrue amount for
+    /// @return _stake The stake with accrued amount
+    function accured(Stake memory _stake) public view returns (Stake memory) {
+        uint256 amount_ = calculateAmount(_stake);
+        _stake.updatedAt = block.timestamp;
+        _stake.amount = amount_;
         return _stake;
     }
 
-    /// @notice Calculates the interest earned for a stake
+    /// @notice Calculates the updated amount for a stake
     /// @param _stakeInfo The stake information
-    /// @return uint256 The amount of interest earned
-    function calculateInterest(Stake memory _stakeInfo) public view returns (uint256) {
-        uint256 claimAt_ = _stakeInfo.claimAt;
+    /// @return _amount The updated amount
+    function calculateAmount(Stake memory _stakeInfo) public view returns (uint256) {
+        uint256 updatedAt_ = _stakeInfo.updatedAt;
         StakeConfig memory config_ = configs[_stakeInfo.configId];
         uint256 stakeDuration_ = config_.stakeDuration;
         uint256 interestRate_ = config_.interestRate;
         uint256 amount_ = _stakeInfo.amount;
 
-        uint256 elapsedTime_ = block.timestamp - claimAt_;
+        uint256 elapsedTime_ = block.timestamp - updatedAt_;
         uint256 upperBound_ = (stakeDuration_ == 0) ? type(uint256).max : stakeDuration_;
         elapsedTime_ = elapsedTime_ > upperBound_ ? upperBound_ : elapsedTime_;
 
-        uint256 interest_ = amount_.mulWad(interestRate_ * elapsedTime_);
-        return interest_ + _stakeInfo.accruedInterest;
+        uint256 elapsedTimeInYear_ = elapsedTime_.divWad(365 days);
+        uint256 rate_ = uint256(FixedPointMathLib.expWad(int256(elapsedTimeInYear_.mulWad(interestRate_))));
+
+        uint256 total_ = amount_.mulWad(rate_);
+        return total_;
     }
 
     function _domainNameAndVersion()
