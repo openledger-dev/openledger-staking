@@ -175,11 +175,11 @@ contract Staking is EIP712, OwnableRoles {
 
         uint256 newStakedAmount_ = stakedAmounts[_configId][_onBehalfOf] + _amount;
 
-        if (newStakedAmount_ <= config_.minStake) {
+        if (newStakedAmount_ < config_.minStake) {
             revert StakeAmountTooSmall();
         }
 
-        if (newStakedAmount_ >= config_.maxStake) {
+        if (newStakedAmount_ > config_.maxStake) {
             revert StakeAmountExceeded();
         }
 
