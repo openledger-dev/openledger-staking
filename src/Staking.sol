@@ -203,11 +203,11 @@ contract Staking is EIP712, OwnableRoles {
 
     /// @notice Allows topping up an existing stake
     /// @param _stakingId The ID of the stake to top up
-    /// @param _amount The amount of tokens to add to the stake
+    /// @param _topupAmount The amount of tokens to add to the stake
     /// @dev SECURITY:
     /// @dev - Reentrancy: Safe because transfer is done after state mutation
     /// @dev - Access control: Only allowed if TOPUP_ENABLED is set for the stake config
-    function topUpStake(uint256 _stakingId, uint256 _amount) external nonZeroAmount(_amount) {
+    function topUpStake(uint256 _stakingId, uint256 _topupAmount) external nonZeroAmount(_topupAmount) {
         Stake memory stake_ = stakes[_stakingId];
         StakeConfig memory config_ = configs[stake_.configId];
 
@@ -221,15 +221,15 @@ contract Staking is EIP712, OwnableRoles {
             revert StakeEnded();
         }
 
-        IERC20(config_.token).safeTransferFrom(msg.sender, config_.bank, _amount);
+        IERC20(config_.token).safeTransferFrom(msg.sender, config_.bank, _topupAmount);
 
         uint256 amount_ = calculateAmount(stake_);
 
-        stake_.amount = _amount + amount_;
+        stake_.amount = _topupAmount + amount_;
         stake_.startTime = block.timestamp;
         stake_.updatedAt = block.timestamp;
 
-        stakedAmounts[stake_.configId][stake_.recipient] = _amount + amount_;
+        stakedAmounts[stake_.configId][stake_.recipient] = _topupAmount + amount_;
 
         if (stakedAmounts[stake_.configId][stake_.recipient] >= config_.maxStake) {
             revert StakeAmountExceeded();
@@ -237,7 +237,7 @@ contract Staking is EIP712, OwnableRoles {
 
         stakes[_stakingId] = stake_;
 
-        emit ToppedUp(_stakingId, stake_.recipient, _amount);
+        emit ToppedUp(_stakingId, stake_.recipient, _topupAmount);
     }
 
     function requestUnstakeWithCommitment(
