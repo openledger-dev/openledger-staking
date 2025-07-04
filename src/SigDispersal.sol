@@ -23,17 +23,23 @@ contract SigDispersal is OwnableRoles {
 
     mapping(bytes32 => mapping(address => uint256)) public claimed;
     mapping(bytes32 => bool) public batchEnabled;
+    mapping(bytes32 => uint256) public batchFee;
 
     // errors
     error AlreadyClaimed();
     error InvalidSignature();
     error NotActive();
     error ZeroAddress();
+    error ETHTransferFailed();
+    error BatchNotEnabled();
+    error MismatchedFee();
+    error SignerNotSet();
 
     event AirdropClaimed(bytes32 indexed batch, address indexed account, uint256 amount);
     event VaultSet(address indexed vault);
     event TokenSet(address indexed token);
     event BatchEnabled(bytes32 indexed root, bool enabled);
+    event BatchFeeSet(bytes32 indexed root, uint256 fee);
 
     uint256 public constant PROJECT_ADMIN = _ROLE_0;
 
@@ -50,6 +56,16 @@ contract SigDispersal is OwnableRoles {
     /// @notice Modifier to check if the airdrop is active
     modifier whenActive() {
         if (!active) revert NotActive();
+        _;
+    }
+
+    modifier whenBatchEnabled(bytes32 _root) {
+        if (!batchEnabled[_root]) revert BatchNotEnabled();
+        _;
+    }
+
+    modifier whenFeePaid(bytes32 _root) {
+        if (batchFee[_root] != msg.value) revert MismatchedFee();
         _;
     }
 
@@ -90,6 +106,16 @@ contract SigDispersal is OwnableRoles {
         emit BatchEnabled(_root, _enabled);
     }
 
+    function withdrawFees() external onlyRoles(PROJECT_ADMIN) {
+        (bool success,) = payable(msg.sender).call{value: address(this).balance}("");
+        if (!success) revert ETHTransferFailed();
+    }
+
+    function setBatchFee(bytes32 _root, uint256 _fee) external onlyRoles(PROJECT_ADMIN) {
+        batchFee[_root] = _fee;
+        emit BatchFeeSet(_root, _fee);
+    }
+
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                   EXTERNAL FUNCTIONS                       */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
@@ -104,16 +130,18 @@ contract SigDispersal is OwnableRoles {
         external
         payable
         whenActive
+        whenBatchEnabled(_batch)
+        whenFeePaid(_batch)
     {
-        address _signer = signer;
-
-        // if the signer is not set, skip signature check
-        _signatureCheck(_amount, _onBehalfOf, _signature, _signer, _batch);
-
         uint256 _claimHeight = claimed[_batch][_onBehalfOf];
         if (_claimHeight > 0) {
             revert AlreadyClaimed();
         }
+
+        address _signer = signer;
+        // if the signer is not set, skip signature check
+        _signatureCheck(_amount, _onBehalfOf, _signature, _signer, _batch);
+
         claimed[_batch][_onBehalfOf] = block.number;
 
         IERC20(token).safeTransferFrom(vault, _onBehalfOf, _amount);
@@ -139,6 +167,7 @@ contract SigDispersal is OwnableRoles {
         bytes32 _batch
     ) internal view {
         if (_signature.length == 0) revert InvalidSignature();
+        if (_signer == address(0)) revert SignerNotSet();
 
         bytes32 messageHash = keccak256(abi.encodePacked(_onBehalfOf, _amount, _batch, address(this), block.chainid));
         bytes32 prefixedHash = ECDSA.toEthSignedMessageHash(messageHash);
