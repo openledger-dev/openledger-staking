@@ -144,9 +144,9 @@ contract StakeTest is Test {
         token.approve(address(staking), type(uint256).max);
     }
 
-    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
-    /*                     Zero Amount Tests                       */
-    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+    // -------------------------------------------------------------------------
+    // Zero Amount Tests
+    // -------------------------------------------------------------------------
 
     function test_RevertWhen_StakeZeroAmount() public {
         vm.prank(user);
@@ -165,9 +165,9 @@ contract StakeTest is Test {
         staking.topUpStake(0, 0); // stake ID 0
     }
 
-    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
-    /*                  Unauthorized Bank Update                   */
-    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+    // -------------------------------------------------------------------------
+    // Unauthorized Bank Update Tests
+    // -------------------------------------------------------------------------
 
     function test_RevertWhen_UnauthorizedBankUpdatesConfig() public {
         StakeConfig memory config = StakeConfig({
@@ -211,9 +211,9 @@ contract StakeTest is Test {
         staking.setConfig(CONFIG_ID, config);
     }
 
-    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
-    /*              Non-Active/Non-Public Plan Tests               */
-    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+    // -------------------------------------------------------------------------
+    // Non-Active/Non-Public Plan Tests
+    // -------------------------------------------------------------------------
 
     function test_RevertWhen_StakeOnInactiveConfig() public {
         vm.prank(user);
@@ -227,9 +227,88 @@ contract StakeTest is Test {
         staking.stake(CONFIG_ID_3, user, STAKE_AMOUNT);
     }
 
-    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
-    /*                  Stake Amount Tests                         */
-    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´+°.•*/
+    function test_RevertWhen_StakeOnPlanToggledInactive() public {
+        // Toggle plan to inactive
+        (
+            address bank_,
+            address manager_,
+            address token_,
+            uint256 interestRate_,
+            uint256 stakeDuration_,
+            uint256 cooldownDuration_,
+            uint256 maxStake_,
+            uint256 minStake_,
+            bool isActive_,
+            bool isTopupEnabled_,
+            bool isPublic_
+        ) = staking.configs(CONFIG_ID);
+        StakeConfig memory config = StakeConfig({
+            bank: bank_,
+            manager: manager_,
+            token: token_,
+            interestRate: interestRate_,
+            stakeDuration: stakeDuration_,
+            cooldownDuration: cooldownDuration_,
+            maxStake: maxStake_,
+            minStake: minStake_,
+            isActive: false,
+            isTopupEnabled: isTopupEnabled_,
+            isPublic: isPublic_
+        });
+        vm.prank(bank);
+        staking.setConfig(CONFIG_ID, config);
+
+        // Try to stake
+        vm.prank(user);
+        vm.expectRevert(Staking.InactiveConfigOrInvalidSender.selector);
+        staking.stake(CONFIG_ID, user, STAKE_AMOUNT);
+    }
+
+    function test_Success_TopupOnInactivePlan() public {
+        // User creates a stake while plan is active
+        vm.prank(user);
+        staking.stake(CONFIG_ID, user, STAKE_AMOUNT);
+
+        // Toggle plan to inactive
+        (
+            address bank_,
+            address manager_,
+            address token_,
+            uint256 interestRate_,
+            uint256 stakeDuration_,
+            uint256 cooldownDuration_,
+            uint256 maxStake_,
+            uint256 minStake_,
+            bool isActive_,
+            bool isTopupEnabled_,
+            bool isPublic_
+        ) = staking.configs(CONFIG_ID);
+        StakeConfig memory config = StakeConfig({
+            bank: bank_,
+            manager: manager_,
+            token: token_,
+            interestRate: interestRate_,
+            stakeDuration: stakeDuration_,
+            cooldownDuration: cooldownDuration_,
+            maxStake: maxStake_,
+            minStake: minStake_,
+            isActive: false,
+            isTopupEnabled: isTopupEnabled_,
+            isPublic: isPublic_
+        });
+        vm.prank(bank);
+        staking.setConfig(CONFIG_ID, config);
+
+        // User can still top up
+        uint256 topupAmount = 200 * WAD;
+        vm.prank(user);
+        staking.topUpStake(0, topupAmount);
+        assertEq(staking.stakedAmounts(CONFIG_ID, user), STAKE_AMOUNT + topupAmount, "User should be able to topup on inactive plan");
+    }
+
+    // -------------------------------------------------------------------------
+    // Stake Amount Tests
+    // -------------------------------------------------------------------------
 
     function test_RevertWhen_StakeAmountTooSmall() public {
         uint256 smallAmount = MIN_STAKE - 1;
@@ -280,9 +359,9 @@ contract StakeTest is Test {
         staking.topUpStake(0, 100); // stake ID 0, would make total = MAX_STAKE, which should fail
     }
 
-    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
-    /*                  Topup Tests                                */
-    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´+°.•*/
+    // -------------------------------------------------------------------------
+    // Topup Tests
+    // -------------------------------------------------------------------------
 
     function test_RevertWhen_TopupWithNonOwnAccount() public {
         // First create a stake
@@ -359,9 +438,9 @@ contract StakeTest is Test {
         assertEq(staking.stakedAmounts(CONFIG_ID, user), STAKE_AMOUNT + topupAmount, "Staked amount should include topup");
     }
 
-    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
-    /*                  Unstake Tests                              */
-    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´+°.•*/
+    // -------------------------------------------------------------------------
+    // Unstake Tests
+    // -------------------------------------------------------------------------
 
     function test_RevertWhen_RequestUnstakeNonExistentStake() public {
         vm.prank(user);
@@ -537,9 +616,9 @@ contract StakeTest is Test {
         assertEq(staking.stakedAmounts(7, user), 0, "Staked amount should be zero");
     }
 
-    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
-    /*                  Success Cases                              */
-    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´+°.•*/
+    // -------------------------------------------------------------------------
+    // Success Cases
+    // -------------------------------------------------------------------------
 
     function test_Success_Stake() public {
         uint256 initialUserBalance = token.balanceOf(user);

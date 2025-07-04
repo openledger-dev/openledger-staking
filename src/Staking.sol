@@ -7,7 +7,6 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {FixedPointMathLib} from "solady/utils/FixedPointMathLib.sol";
 import {EIP712} from "solady/utils/EIP712.sol";
 import {ECDSA} from "solady/utils/ECDSA.sol";
-
 /// @title Staking Contract
 /// @notice A flexible staking system that allows users to stake tokens and earn interest
 /// @dev Implements EIP-712 for typed data signing and uses Solady's OwnableRoles for access control
@@ -260,8 +259,8 @@ contract Staking is EIP712, OwnableRoles {
                     ),
                     msg.sender,
                     _configId,
-                    _startTime,
                     _amount,
+                    _startTime,
                     _nonce
                 )
             )
