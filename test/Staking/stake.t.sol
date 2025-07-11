@@ -624,6 +624,57 @@ contract StakeTest is Test {
         assertEq(staking.stakedAmounts(7, user), 0, "Staked amount should be zero");
     }
 
+    function test_Success_UnstakeWithoutCooldownWithInterest() public {
+        // Create config without cooldown and with interest rate
+        StakeConfig memory noCooldownConfig = StakeConfig({
+            bank: bank,
+            manager: manager,
+            token: address(token),
+            interestRate: INTEREST_RATE, // 5% interest rate
+            stakeDuration: 30 days, // Shorter duration
+            cooldownDuration: 0, // No cooldown
+            maxStake: MAX_STAKE,
+            minStake: MIN_STAKE,
+            isActive: true,
+            isTopupEnabled: true,
+            isPublic: true
+        });
+
+        vm.prank(bank);
+        staking.setConfig(9, noCooldownConfig);
+
+        // Create stake
+        vm.prank(user);
+        staking.stake(9, user, STAKE_AMOUNT);
+
+        uint256 initialBalance = token.balanceOf(user);
+
+        // Advance time to end stake (30 days)
+        vm.warp(block.timestamp + 30 days + 1);
+
+        // Calculate expected amount with interest
+        Stake memory stake = Stake({
+            recipient: user,
+            configId: 9,
+            updatedAt: block.timestamp - 30 days - 1,
+            amount: STAKE_AMOUNT,
+            startTime: block.timestamp - 30 days - 1,
+            principal: STAKE_AMOUNT
+        });
+        uint256 expectedAmount = staking.calculateAmount(stake);
+
+        // Request unstake (should unstake immediately)
+        vm.prank(user);
+        staking.requestUnstake(0); // stake ID 0
+
+        // Check that tokens were returned immediately with interest
+        assertEq(
+            token.balanceOf(user), initialBalance + expectedAmount, "User should receive tokens with interest immediately"
+        );
+        assertEq(staking.stakedAmounts(9, user), 0, "Staked amount should be zero");
+        assertGt(expectedAmount, STAKE_AMOUNT, "Expected amount should be greater than principal due to interest");
+    }
+
     // -------------------------------------------------------------------------
     // Success Cases
     // -------------------------------------------------------------------------
