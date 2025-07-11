@@ -25,7 +25,7 @@ struct StakeConfig {
     address bank; // Address that holds the staked tokens
     address manager; // Address that can manage the stake
     address token; // The token that users can stake
-    uint256 interestRate; // Interest rate per second (in wei)
+    uint256 interestRate; // Interest rate per year (in wei)
     uint256 stakeDuration; // Duration of the stake in seconds
     uint256 cooldownDuration; // Duration of the cooldown period in seconds
     uint256 maxStake; // Maximum amount of tokens that can be staked

@@ -11,7 +11,7 @@ struct StakeConfig {
     address bank; // Address of the bank contract that holds the staked tokens
     address manager; // Address that has management permissions for the stake
     address token; // The ERC20 token address that users can stake
-    uint256 interestRate; // Interest rate per second (in wei) - represents the reward rate
+    uint256 interestRate; // Interest rate per year (in wei) - represents the reward rate
     uint256 stakeDuration; // Duration of the stake in seconds - how long tokens must be locked
     uint256 cooldownDuration; // Duration of the cooldown period in seconds after unstaking
     uint256 maxStake; // Maximum amount of tokens that can be staked per user
