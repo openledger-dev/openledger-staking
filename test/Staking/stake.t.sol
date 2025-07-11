@@ -303,7 +303,11 @@ contract StakeTest is Test {
         uint256 topupAmount = 200 * WAD;
         vm.prank(user);
         staking.topUpStake(0, topupAmount);
-        assertEq(staking.stakedAmounts(CONFIG_ID, user), STAKE_AMOUNT + topupAmount, "User should be able to topup on inactive plan");
+        assertEq(
+            staking.stakedAmounts(CONFIG_ID, user),
+            STAKE_AMOUNT + topupAmount,
+            "User should be able to topup on inactive plan"
+        );
     }
 
     // -------------------------------------------------------------------------
@@ -320,7 +324,7 @@ contract StakeTest is Test {
     function test_RevertWhen_StakeAmountExceedsMax() public {
         // Give user more tokens for this test
         token.mint(user, MAX_STAKE);
-        
+
         // First stake a small amount, then try to stake the remaining that would exceed max
         uint256 firstStake = 100 * WAD;
         vm.prank(user);
@@ -336,14 +340,14 @@ contract StakeTest is Test {
     function test_Success_StakeMinimumAmount() public {
         vm.prank(user);
         staking.stake(CONFIG_ID, user, MIN_STAKE + 1);
-        
+
         assertEq(staking.stakedAmounts(CONFIG_ID, user), MIN_STAKE + 1, "Staked amount should be above minimum stake");
     }
 
     function test_Success_StakeMaximumAmount() public {
         vm.prank(user);
         staking.stake(CONFIG_ID, user, MAX_STAKE - 1);
-        
+
         assertEq(staking.stakedAmounts(CONFIG_ID, user), MAX_STAKE - 1, "Staked amount should be below maximum stake");
     }
 
@@ -429,13 +433,15 @@ contract StakeTest is Test {
         staking.stake(CONFIG_ID, user, STAKE_AMOUNT);
 
         uint256 topupAmount = 500 * WAD;
-        
+
         // Topup stake
         vm.prank(user);
         staking.topUpStake(0, topupAmount); // stake ID 0
 
         // Check that staked amount increased
-        assertEq(staking.stakedAmounts(CONFIG_ID, user), STAKE_AMOUNT + topupAmount, "Staked amount should include topup");
+        assertEq(
+            staking.stakedAmounts(CONFIG_ID, user), STAKE_AMOUNT + topupAmount, "Staked amount should include topup"
+        );
     }
 
     // -------------------------------------------------------------------------
@@ -612,7 +618,9 @@ contract StakeTest is Test {
         staking.requestUnstake(0); // stake ID 0
 
         // Check that tokens were returned immediately (no interest with zero rate)
-        assertEq(token.balanceOf(user), initialBalance + STAKE_AMOUNT, "User should receive original tokens back immediately");
+        assertEq(
+            token.balanceOf(user), initialBalance + STAKE_AMOUNT, "User should receive original tokens back immediately"
+        );
         assertEq(staking.stakedAmounts(7, user), 0, "Staked amount should be zero");
     }
 
@@ -623,7 +631,7 @@ contract StakeTest is Test {
     function test_Success_Stake() public {
         uint256 initialUserBalance = token.balanceOf(user);
         uint256 initialBankBalance = token.balanceOf(bank);
-        
+
         vm.prank(user);
         staking.stake(CONFIG_ID, user, STAKE_AMOUNT);
 
@@ -631,12 +639,13 @@ contract StakeTest is Test {
         assertEq(token.balanceOf(bank), initialBankBalance + STAKE_AMOUNT, "Bank should receive staked tokens");
         assertEq(token.balanceOf(user), initialUserBalance - STAKE_AMOUNT, "User should have tokens deducted");
         assertEq(staking.stakedAmounts(CONFIG_ID, user), STAKE_AMOUNT, "Staked amount should be recorded");
-        
-        // Check stake data - tuple order: (recipient, configId, updatedAt, amount, startTime)
-        (address recipient, uint256 configId, , uint256 amount, ) = staking.stakes(0);
+
+        // Check stake data - tuple order: (recipient, configId, updatedAt, amount, startTime, principal)
+        (address recipient, uint256 configId,, uint256 amount,, uint256 principal) = staking.stakes(0);
         assertEq(recipient, user, "Stake recipient should be user");
         assertEq(configId, CONFIG_ID, "Stake config ID should match");
         assertEq(amount, STAKE_AMOUNT, "Stake amount should match");
+        assertEq(principal, STAKE_AMOUNT, "Stake principal should match");
     }
 
     function test_Success_StakeOnBehalfOf() public {
@@ -644,7 +653,7 @@ contract StakeTest is Test {
         staking.stake(CONFIG_ID, user2, STAKE_AMOUNT);
 
         // Check that user2 is the recipient
-        (address recipient, , , , ) = staking.stakes(0); // stake ID 0
+        (address recipient,,,,,) = staking.stakes(0); // stake ID 0
         assertEq(recipient, user2, "Stake recipient should be user2");
         assertEq(staking.stakedAmounts(CONFIG_ID, user2), STAKE_AMOUNT, "Staked amount should be recorded for user2");
     }
@@ -668,7 +677,7 @@ contract StakeTest is Test {
         staking.setConfig(10, newConfig);
 
         // Verify config was created - tuple order: (bank, manager, token, interestRate, stakeDuration, cooldownDuration, maxStake, minStake, isActive, isTopupEnabled, isPublic)
-        (address configBank, , address configToken, , , , , , , , ) = staking.configs(10);
+        (address configBank,, address configToken,,,,,,,,) = staking.configs(10);
         assertEq(configBank, bank2, "Config bank should be bank2");
         assertEq(configToken, address(token), "Config token should match");
     }

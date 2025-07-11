@@ -91,9 +91,7 @@ contract CommitmentTest is Test {
         bytes32 digest = hashTypedData(
             keccak256(
                 abi.encode(
-                    keccak256(
-                        "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
-                    ),
+                    keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
                     keccak256("Staking"),
                     keccak256("1"),
                     block.chainid,
@@ -124,13 +122,7 @@ contract CommitmentTest is Test {
         vm.warp(block.timestamp + STAKE_DURATION);
 
         vm.prank(user);
-        staking.requestUnstakeWithCommitment(
-            0,
-            0,
-            start_,
-            0,
-            STAKE_AMOUNT
-        );
+        staking.requestUnstakeWithCommitment(0, 0, start_, 0, STAKE_AMOUNT);
     }
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
@@ -142,9 +134,7 @@ contract CommitmentTest is Test {
         bytes32 digest = hashTypedData(
             keccak256(
                 abi.encode(
-                    keccak256(
-                        "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
-                    ),
+                    keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
                     keccak256("Staking"),
                     keccak256("1"),
                     block.chainid,
@@ -183,9 +173,7 @@ contract CommitmentTest is Test {
         bytes32 digest = hashTypedData(
             keccak256(
                 abi.encode(
-                    keccak256(
-                        "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
-                    ),
+                    keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
                     keccak256("Staking"),
                     keccak256("1"),
                     block.chainid,
@@ -228,9 +216,7 @@ contract CommitmentTest is Test {
         bytes32 digest = hashTypedData(
             keccak256(
                 abi.encode(
-                    keccak256(
-                        "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
-                    ),
+                    keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
                     keccak256("Staking"),
                     keccak256("1"),
                     block.chainid,
@@ -263,13 +249,7 @@ contract CommitmentTest is Test {
         // Try to request unstake with commitment using wrong sender
         vm.prank(user2);
         vm.expectRevert(Ownable.Unauthorized.selector);
-        staking.requestUnstakeWithCommitment(
-            0,
-            0,
-            start_,
-            0,
-            STAKE_AMOUNT
-        );
+        staking.requestUnstakeWithCommitment(0, 0, start_, 0, STAKE_AMOUNT);
     }
 
     function test_RevertWhen_RequestUnstakeWithCommitmentNonExistentCommitment() public {
@@ -290,9 +270,7 @@ contract CommitmentTest is Test {
         bytes32 digest = hashTypedData(
             keccak256(
                 abi.encode(
-                    keccak256(
-                        "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
-                    ),
+                    keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
                     keccak256("Staking"),
                     keccak256("1"),
                     block.chainid,
@@ -339,9 +317,7 @@ contract CommitmentTest is Test {
         bytes32 digest = hashTypedData(
             keccak256(
                 abi.encode(
-                    keccak256(
-                        "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
-                    ),
+                    keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
                     keccak256("Staking"),
                     keccak256("1"),
                     block.chainid,
@@ -377,22 +353,15 @@ contract CommitmentTest is Test {
 
         // Request unstake with commitment
         vm.prank(user);
-        staking.requestUnstakeWithCommitment(
-            0,
-            0,
-            start_,
-            0,
-            STAKE_AMOUNT
-        );
+        staking.requestUnstakeWithCommitment(0, 0, start_, 0, STAKE_AMOUNT);
 
         // Verify commitment was deleted
         bytes memory deletedCommitment = staking.stakeCommitments(0);
         assertEq(deletedCommitment.length, 0, "Commitment should be deleted after use");
     }
 
-
     function hashTypedData(bytes32 dominSeperator, bytes32 structHash) public pure returns (bytes32 digest) {
-                /// @solidity memory-safe-assembly
+        /// @solidity memory-safe-assembly
         assembly {
             // Compute the digest.
             mstore(0x00, 0x1901000000000000) // Store "\x19\x01".

@@ -106,7 +106,8 @@ contract InterestTest is Test {
             configId: CONFIG_ID,
             updatedAt: block.timestamp,
             amount: STAKE_AMOUNT,
-            startTime: block.timestamp
+            startTime: block.timestamp,
+            principal: STAKE_AMOUNT
         });
 
         // Advance time by 1 day
@@ -128,7 +129,8 @@ contract InterestTest is Test {
             configId: CONFIG_ID,
             updatedAt: block.timestamp,
             amount: STAKE_AMOUNT,
-            startTime: block.timestamp
+            startTime: block.timestamp,
+            principal: STAKE_AMOUNT
         });
 
         uint256 totalAmount = staking.calculateAmount(stake);
@@ -143,7 +145,8 @@ contract InterestTest is Test {
             configId: CONFIG_ID,
             updatedAt: block.timestamp,
             amount: largeAmount,
-            startTime: block.timestamp
+            startTime: block.timestamp,
+            principal: largeAmount
         });
 
         vm.warp(block.timestamp + 30 days);
@@ -180,7 +183,8 @@ contract InterestTest is Test {
             configId: 2,
             updatedAt: block.timestamp,
             amount: STAKE_AMOUNT,
-            startTime: block.timestamp
+            startTime: block.timestamp,
+            principal: STAKE_AMOUNT
         });
 
         vm.warp(block.timestamp + 1 hours);
@@ -213,7 +217,8 @@ contract InterestTest is Test {
             configId: 3,
             updatedAt: block.timestamp,
             amount: STAKE_AMOUNT,
-            startTime: block.timestamp
+            startTime: block.timestamp,
+            principal: STAKE_AMOUNT
         });
 
         vm.warp(block.timestamp + 365 days);
@@ -228,7 +233,8 @@ contract InterestTest is Test {
             configId: CONFIG_ID,
             updatedAt: block.timestamp,
             amount: STAKE_AMOUNT,
-            startTime: block.timestamp
+            startTime: block.timestamp,
+            principal: STAKE_AMOUNT
         });
 
         // Advance time beyond stake duration
@@ -266,7 +272,8 @@ contract InterestTest is Test {
             configId: 4,
             updatedAt: block.timestamp,
             amount: STAKE_AMOUNT,
-            startTime: block.timestamp
+            startTime: block.timestamp,
+            principal: STAKE_AMOUNT
         });
 
         vm.warp(block.timestamp + 3650 days);
@@ -285,7 +292,8 @@ contract InterestTest is Test {
             configId: CONFIG_ID,
             updatedAt: block.timestamp,
             amount: STAKE_AMOUNT,
-            startTime: block.timestamp
+            startTime: block.timestamp,
+            principal: STAKE_AMOUNT
         });
 
         uint256 start_ = block.timestamp;
@@ -311,7 +319,8 @@ contract InterestTest is Test {
             configId: CONFIG_ID,
             updatedAt: block.timestamp,
             amount: STAKE_AMOUNT,
-            startTime: block.timestamp
+            startTime: block.timestamp,
+            principal: STAKE_AMOUNT
         });
 
         // No time elapsed, so no interest should accrue
@@ -327,7 +336,8 @@ contract InterestTest is Test {
             configId: CONFIG_ID,
             updatedAt: block.timestamp,
             amount: STAKE_AMOUNT,
-            startTime: block.timestamp
+            startTime: block.timestamp,
+            principal: STAKE_AMOUNT
         });
 
         // First accrual
@@ -370,7 +380,8 @@ contract InterestTest is Test {
             configId: 5,
             updatedAt: block.timestamp,
             amount: smallAmount,
-            startTime: block.timestamp
+            startTime: block.timestamp,
+            principal: smallAmount
         });
 
         vm.warp(block.timestamp + 1 hours);
@@ -410,7 +421,8 @@ contract InterestTest is Test {
             configId: 6,
             updatedAt: block.timestamp,
             amount: amount,
-            startTime: block.timestamp
+            startTime: block.timestamp,
+            principal: amount
         });
 
         vm.warp(block.timestamp + timeElapsed);
@@ -442,7 +454,8 @@ contract InterestTest is Test {
             configId: CONFIG_ID,
             updatedAt: block.timestamp,
             amount: maxAmount,
-            startTime: block.timestamp
+            startTime: block.timestamp,
+            principal: maxAmount
         });
 
         vm.warp(block.timestamp + 1 seconds);
@@ -458,7 +471,8 @@ contract InterestTest is Test {
             configId: CONFIG_ID,
             updatedAt: block.timestamp,
             amount: STAKE_AMOUNT,
-            startTime: block.timestamp
+            startTime: block.timestamp,
+            principal: STAKE_AMOUNT
         });
 
         vm.warp(block.timestamp + 1 days);
@@ -480,7 +494,8 @@ contract InterestTest is Test {
             configId: CONFIG_ID,
             updatedAt: block.timestamp,
             amount: initialAmount,
-            startTime: block.timestamp
+            startTime: block.timestamp,
+            principal: initialAmount
         });
 
         vm.warp(block.timestamp + timeElapsed);
@@ -505,14 +520,16 @@ contract InterestTest is Test {
         staking.stake(CONFIG_ID, user, STAKE_AMOUNT);
 
         // Get the stake
-        (address recipient, uint256 configId, uint256 updatedAt, uint256 amount, uint256 startTime) = staking.stakes(0); // First stake has ID 0
+        (address recipient, uint256 configId, uint256 updatedAt, uint256 amount, uint256 startTime, uint256 principal) =
+            staking.stakes(0); // First stake has ID 0
 
         Stake memory stake = Stake({
             recipient: recipient,
             configId: configId,
             updatedAt: updatedAt,
             amount: amount,
-            startTime: startTime
+            startTime: startTime,
+            principal: principal
         });
 
         vm.warp(block.timestamp + 30 days);
@@ -558,7 +575,7 @@ contract InterestTest is Test {
     }
 
     function getStake(uint256 _stakingId) public view returns (Stake memory) {
-        (address recipient, uint256 configId, uint256 updatedAt, uint256 amount, uint256 startTime) =
+        (address recipient, uint256 configId, uint256 updatedAt, uint256 amount, uint256 startTime, uint256 principal) =
             staking.stakes(_stakingId);
 
         return Stake({
@@ -566,7 +583,8 @@ contract InterestTest is Test {
             configId: configId,
             updatedAt: updatedAt,
             amount: amount,
-            startTime: startTime
+            startTime: startTime,
+            principal: principal
         });
     }
 }

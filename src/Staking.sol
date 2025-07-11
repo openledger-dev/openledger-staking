@@ -10,12 +10,14 @@ import {ECDSA} from "solady/utils/ECDSA.sol";
 /// @title Staking Contract
 /// @notice A flexible staking system that allows users to stake tokens and earn interest
 /// @dev Implements EIP-712 for typed data signing and uses Solady's OwnableRoles for access control
+
 struct Stake {
     address recipient; // Commitment to the stake
     uint256 configId; // Configuration ID
     uint256 updatedAt; // Timestamp of the last interest claim
     uint256 amount; // Amount of tokens staked
     uint256 startTime; // Timestamp when the stake was created
+    uint256 principal; // Amount of tokens that are not interest
 }
 
 /// @notice Configuration for a stake type
@@ -165,7 +167,8 @@ contract Staking is EIP712, OwnableRoles {
             configId: _configId,
             updatedAt: block.timestamp,
             amount: _amount,
-            startTime: block.timestamp
+            startTime: block.timestamp,
+            principal: _amount
         });
 
         uint256 currentStakeId_ = nextStakeId++;
@@ -228,7 +231,7 @@ contract Staking is EIP712, OwnableRoles {
         stake_.startTime = block.timestamp;
         stake_.updatedAt = block.timestamp;
 
-        stakedAmounts[stake_.configId][stake_.recipient] = _topupAmount + amount_;
+        stakedAmounts[stake_.configId][stake_.recipient] += _topupAmount;
 
         if (stakedAmounts[stake_.configId][stake_.recipient] >= config_.maxStake) {
             revert StakeAmountExceeded();
@@ -281,7 +284,8 @@ contract Staking is EIP712, OwnableRoles {
             configId: _configId,
             updatedAt: _startTime,
             amount: _amount,
-            startTime: _startTime
+            startTime: _startTime,
+            principal: _amount
         });
         stakes[_stakingId] = stake_;
         stakedAmounts[_configId][msg.sender] += _amount;
@@ -351,7 +355,7 @@ contract Staking is EIP712, OwnableRoles {
             revert StakeNotEnded();
         }
 
-        stakedAmounts[_stake.configId][_stake.recipient] -= _stake.amount;
+        stakedAmounts[_stake.configId][_stake.recipient] -= _stake.principal;
 
         IERC20(config_.token).safeTransferFrom(config_.bank, _stake.recipient, _stake.amount);
         emit Unstaked(_stakeId, _stake.recipient);
