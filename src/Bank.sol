@@ -24,10 +24,7 @@ struct StakeConfig {
 /// @notice Interface for the staking contract to set configuration
 /// @dev This interface allows the bank to configure staking pools
 interface IStaking {
-    function setConfig(
-        uint256 _configId,
-        StakeConfig calldata _config
-    ) external;
+    function setConfig(uint256 _configId, StakeConfig calldata _config) external;
 }
 
 /// @title Bank Contract
@@ -47,11 +44,7 @@ contract Bank is OwnableRoles {
     /// @param _token The ERC20 token address to approve
     /// @param _spender The address that will be approved to spend tokens
     /// @param _amount The amount of tokens to approve for spending
-    function approve(
-        address _token,
-        address _spender,
-        uint256 _amount
-    ) external onlyOwner {
+    function approve(address _token, address _spender, uint256 _amount) external onlyOwner {
         IERC20(_token).approve(_spender, _amount);
     }
 
@@ -60,11 +53,7 @@ contract Bank is OwnableRoles {
     /// @param _staking The address of the staking contract
     /// @param _configId The ID of the configuration to set
     /// @param _config The stake configuration parameters
-    function setConfig(
-        address _staking,
-        uint256 _configId,
-        StakeConfig calldata _config
-    ) external onlyOwner {
+    function setConfig(address _staking, uint256 _configId, StakeConfig calldata _config) external onlyOwner {
         IStaking(_staking).setConfig(_configId, _config);
     }
 }

@@ -219,7 +219,7 @@ contract Staking is EIP712, OwnableRoles {
         }
 
         bool isEnded_ = stake_.startTime + config_.stakeDuration <= block.timestamp;
-        if (isEnded_) {
+        if (config_.stakeDuration != 0 && isEnded_) {
             revert StakeEnded();
         }
 
@@ -230,6 +230,7 @@ contract Staking is EIP712, OwnableRoles {
         stake_.amount = _topupAmount + amount_;
         stake_.startTime = block.timestamp;
         stake_.updatedAt = block.timestamp;
+        stake_.principal += _topupAmount;
 
         stakedAmounts[stake_.configId][stake_.recipient] += _topupAmount;
 
